@@ -23,7 +23,11 @@ id_body = foreach emails generate message_id, body;
 define test_stream `token_extractor.py` SHIP ('token_extractor.py');
 cleaned_words = stream id_body through test_stream as (message_id:chararray, token_strings:chararray);
 token_records = foreach cleaned_words generate message_id, FLATTEN(TOKENIZE(token_strings)) as tokens;
-dump token_records
+
+all_words = foreach token_records generate tokens;
+word_totals = foreach (group all_words by tokens) generate group as token, COUNT_STAR(all_words) as doc_total;
+
+dump word_totals
 
 /*raw =  LOAD 'cassandra://pygmalion/account' USING CassandraStorage();
 rows = FOREACH raw GENERATE key, FLATTEN(FromCassandraBag('first_name, last_name, birth_place', columns)) AS (
