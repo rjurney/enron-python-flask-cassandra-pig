@@ -1,6 +1,11 @@
+drop keyspace enron;
 create keyspace enron;
 use enron;
-create column family email with
+create column family email_topics with
     comparator = UTF8Type and
     default_validation_class = UTF8Type and
-    key_validation_class = UTF8Type;
+    key_validation_class = UTF8Type and
+    column_metadata=
+    [
+        {column_name: tf_idf, validation_class: DoubleType},
+    ];

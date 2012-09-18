@@ -17,6 +17,7 @@ define AvroStorage org.apache.pig.piggybank.storage.avro.AvroStorage();
 
 emails = load '/me/Data/enron.avro' using AvroStorage();
 emails = filter emails by message_id is not null;
+/* Limit to 1,000 documents for local mode, or go bake a cake in the meanwhile */
 emails = limit emails 10;
 id_body = foreach emails generate message_id, body;
 
@@ -48,20 +49,25 @@ ndocs = foreach (group just_ids all) generate COUNT_STAR(just_ids) as total_docs
 
 /* Note the use of Pig Scalars to calculate idf */
 tfidf_all = foreach token_usages {
-             idf    = LOG((double)ndocs.total_docs/(double)num_docs_with_token);
-             tf_idf = (double)term_freq*idf;
-               generate message_id as message_id,
-                  token as token,
-                  tf_idf as tf_idf;
-            };
-
+  idf    = LOG((double)ndocs.total_docs/(double)num_docs_with_token);
+  tf_idf = (double)term_freq * idf;
+  generate message_id as message_id,
+    token as token,
+    tf_idf as tf_idf;
+};
+/* Get the top 20 Tf*Idf scores per message */
 per_message = foreach (group tfidf_all by message_id) {
   sorted = order tfidf_all by tf_idf desc;
   top_20_topics = limit sorted 20;
-  generate group as message_id, top_20_topics.(token, tf_idf) as topic_score;
+  generate group as message_id, FLATTEN(top_20_topics.(token, tf_idf)) as (token, tf_idf);
 }
 
-store per_message into '/tmp/test_per_message';
+-- store per_message into '/tmp/test_per_message';
+
+per_message_cassandra = FOREACH per_message GENERATE
+    FLATTEN(ToCassandraBag(message_id, token, tf_idf));
+
+STORE per_message_cassandra INTO 'cassandra://enron/email_topics' USING CassandraStorage();
 
 /*raw =  LOAD 'cassandra://pygmalion/account' USING CassandraStorage();
 rows = FOREACH raw GENERATE key, FLATTEN(FromCassandraBag('first_name, last_name, birth_place', columns)) AS (
