@@ -49,6 +49,15 @@ class TokenExtractor:
         words.append(word)
     return words
   
+  def remove_endlines(self, tokens):
+    endlines = re.compile(r'\\\\n')
+    words = list()
+    for token in tokens:
+      word = endlines.sub(" ", token)
+      if word != "":
+        words.append(word)
+    return words
+  
   def short_filter(self, tokens):
     words = list()
     for token in tokens:
@@ -70,14 +79,11 @@ def main():
   te = TokenExtractor()
   for line in sys.stdin:
     tokens = te.tokenize(line)
-    #print tokens
     no_urls = te.remove_urls(tokens)
-    #print no_urls
     lowers = te.lower(no_urls)
-    #print lowers
     no_punc = te.remove_punctuation(lowers)
-    #print no_punc
-    no_shorts = te.short_filter(no_punc)
+    no_newlines = te.remove_endlines(no_punc)
+    no_shorts = te.short_filter(no_newlines)
     print no_shorts
 
 if __name__ == "__main__":
