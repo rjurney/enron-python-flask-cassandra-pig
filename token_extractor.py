@@ -43,10 +43,12 @@ class TokenExtractor:
   def remove_endlines(self, tokens):
     endlines = re.compile(r'\\n')
     tabs = re.compile(r'\\t')
+    slashes = re.compile(r'/')
     words = list()
     for token in tokens:
       word = endlines.sub(" ", token)
       word = tabs.sub(" ", word)
+      word = slashes.sub(" ", word)
       if word != "":
         words.append(word)
     return words
