@@ -17,7 +17,17 @@ define AvroStorage org.apache.pig.piggybank.storage.avro.AvroStorage();
 
 emails = load '/me/Data/enron.avro' using AvroStorage();
 emails = filter emails by message_id is not null;
+emails = limit emails 10;
 id_body = foreach emails generate message_id, body;
+
+define test_stream `token_extractor.py` SHIP ('token_extractor.py');
+foo = stream id_body through test_stream;
+dump foo;
+
+
+A = LOAD 'trivial.log' USING PigStorage('\t') AS (mynum: int, mynumstr: chararray);
+C = STREAM A THROUGH test_stream;
+DUMP C;
 
 raw =  LOAD 'cassandra://pygmalion/account' USING CassandraStorage();
 rows = FOREACH raw GENERATE key, FLATTEN(FromCassandraBag('first_name, last_name, birth_place', columns)) AS (
