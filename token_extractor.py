@@ -50,7 +50,7 @@ class TokenExtractor:
     return words
   
   def remove_endlines(self, tokens):
-    endlines = re.compile(r'\\\\n')
+    endlines = re.compile(r'\\n')
     words = list()
     for token in tokens:
       word = endlines.sub(" ", token)
@@ -78,13 +78,14 @@ class TokenExtractor:
 def main():
   te = TokenExtractor()
   for line in sys.stdin:
-    tokens = te.tokenize(line)
+    message_id, body = line.split('\t')
+    tokens = te.tokenize(body)
     no_urls = te.remove_urls(tokens)
     lowers = te.lower(no_urls)
     no_punc = te.remove_punctuation(lowers)
     no_newlines = te.remove_endlines(no_punc)
     no_shorts = te.short_filter(no_newlines)
-    print no_shorts
+    print message_id + "\t" + " ".join(no_shorts)
 
 if __name__ == "__main__":
     main()

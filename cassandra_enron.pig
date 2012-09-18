@@ -21,18 +21,15 @@ emails = limit emails 10;
 id_body = foreach emails generate message_id, body;
 
 define test_stream `token_extractor.py` SHIP ('token_extractor.py');
-foo = stream id_body through test_stream;
-dump foo;
+cleaned_words = stream id_body through test_stream as (message_id:chararray, token_strings:chararray);
+token_records = foreach cleaned_words generate message_id, FLATTEN(TOKENIZE(token_strings)) as tokens;
+dump token_records
 
-
-A = LOAD 'trivial.log' USING PigStorage('\t') AS (mynum: int, mynumstr: chararray);
-C = STREAM A THROUGH test_stream;
-DUMP C;
-
-raw =  LOAD 'cassandra://pygmalion/account' USING CassandraStorage();
+/*raw =  LOAD 'cassandra://pygmalion/account' USING CassandraStorage();
 rows = FOREACH raw GENERATE key, FLATTEN(FromCassandraBag('first_name, last_name, birth_place', columns)) AS (
     first_name:chararray,
     last_name:chararray,
     birth_place:chararray
 );
 dump rows
+*/
