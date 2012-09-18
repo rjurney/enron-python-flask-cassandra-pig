@@ -22,15 +22,6 @@ class TokenExtractor:
     self.is_url = HttpUrl()
     self.is_email = Email()
   
-  def remove_stop_words(self, tokens):
-    words = list()
-    for token in tokens:
-      if self.stop_words.has_key(token):
-        pass
-      else:
-        words.append(token)
-    return words
-  
   def tokenize(self, status):
     return nltk.word_tokenize(status)
   
@@ -51,9 +42,11 @@ class TokenExtractor:
   
   def remove_endlines(self, tokens):
     endlines = re.compile(r'\\n')
+    tabs = re.compile(r'\\t')
     words = list()
     for token in tokens:
       word = endlines.sub(" ", token)
+      word = tabs.sub(" ", word)
       if word != "":
         words.append(word)
     return words
