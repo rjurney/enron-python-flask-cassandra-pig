@@ -18,16 +18,19 @@ define AvroStorage org.apache.pig.piggybank.storage.avro.AvroStorage();
 emails = load '/me/Data/enron.avro' using AvroStorage();
 emails = filter emails by message_id is not null;
 /* Limit to 1,000 documents for local mode, or go bake a cake in the meanwhile */
-emails = limit emails 10;
+emails = limit emails 100;
 id_body = foreach emails generate message_id, body;
 
 define test_stream `token_extractor.py` SHIP ('token_extractor.py');
 cleaned_words = stream id_body through test_stream as (message_id:chararray, token_strings:chararray);
 token_records = foreach cleaned_words generate message_id, FLATTEN(TOKENIZE(token_strings)) as tokens;
+
+/* Calculate the term count per document */
 doc_word_totals = foreach (group token_records by (message_id, tokens)) generate 
                     flatten(group) as (message_id, token), 
                     COUNT_STAR(token_records) as doc_total;
 
+/* Calculate the document size */
 pre_term_counts = foreach (group doc_word_totals by message_id) generate
                     group AS message_id,
                     FLATTEN(doc_word_totals.(token, doc_total)) as (token, doc_total), 
@@ -55,15 +58,16 @@ tfidf_all = foreach token_usages {
     token as score,
     (chararray)tf_idf as value:chararray;
 };
-/* Get the top 20 Tf*Idf scores per message */
+
+/* Get the top 10 Tf*Idf scores per message */
 per_message_cassandra = foreach (group tfidf_all by message_id) {
   sorted = order tfidf_all by value desc;
-  top_10_topics = limit sorted 20;
-  generate group, top_20_topics.(score, value);
+  top_10_topics = limit sorted 10;
+  generate group, top_10_topics.(score, value);
 }
 
 store per_message_cassandra into 'cassandra://enron/email_topics' USING CassandraStorage();
 
-/* This will give you some message_id keys to fetch in Cassandra */
-samples = limit just_ids 10;
+/* This will give you some message_id keys to fetch in Cassandra, and some message bodies to compare topics to. */
+samples = limit id_body 10;
 dump samples;
