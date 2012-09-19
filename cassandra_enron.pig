@@ -52,28 +52,18 @@ tfidf_all = foreach token_usages {
   idf    = LOG((double)ndocs.total_docs/(double)num_docs_with_token);
   tf_idf = (double)term_freq * idf;
   generate message_id as message_id,
-    token as token,
-    tf_idf as tf_idf;
+    token as score,
+    (chararray)tf_idf as value:chararray;
 };
 /* Get the top 20 Tf*Idf scores per message */
-per_message = foreach (group tfidf_all by message_id) {
-  sorted = order tfidf_all by tf_idf desc;
-  top_20_topics = limit sorted 20;
-  generate group as message_id, FLATTEN(top_20_topics.(token, tf_idf)) as (token, tf_idf);
+per_message_cassandra = foreach (group tfidf_all by message_id) {
+  sorted = order tfidf_all by value desc;
+  top_10_topics = limit sorted 20;
+  generate group, top_20_topics.(score, value);
 }
 
--- store per_message into '/tmp/test_per_message';
+store per_message_cassandra into 'cassandra://enron/email_topics' USING CassandraStorage();
 
-per_message_cassandra = FOREACH per_message GENERATE
-    FLATTEN(ToCassandraBag(message_id, token, tf_idf));
-
-STORE per_message_cassandra INTO 'cassandra://enron/email_topics' USING CassandraStorage();
-
-/*raw =  LOAD 'cassandra://pygmalion/account' USING CassandraStorage();
-rows = FOREACH raw GENERATE key, FLATTEN(FromCassandraBag('first_name, last_name, birth_place', columns)) AS (
-    first_name:chararray,
-    last_name:chararray,
-    birth_place:chararray
-);
-dump rows
-*/
+/* This will give you some message_id keys to fetch in Cassandra */
+samples = limit just_ids 10;
+dump samples;
