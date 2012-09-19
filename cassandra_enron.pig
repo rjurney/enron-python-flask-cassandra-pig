@@ -69,5 +69,5 @@ per_message_cassandra = foreach (group tfidf_all by message_id) {
 store per_message_cassandra into 'cassandra://enron/email_topics' USING CassandraStorage();
 
 /* This will give you some message_id keys to fetch in Cassandra, and some message bodies to compare topics to. */
-samples = limit id_body 10;
+samples = limit just_ids 10;
 dump samples;
