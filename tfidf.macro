@@ -1,5 +1,6 @@
 DEFINE tf_idf(in_relation, id_field, text_field) RETURNS out_relation {
 
+  /* Note: we should be using the Lucene tokenizer, TOKENIZE on whitespace isn't good enough */
 	token_records = foreach $in_relation generate $id_field, FLATTEN(TOKENIZE($text_field)) as tokens;
 
 	/* Calculate the term count per document */
