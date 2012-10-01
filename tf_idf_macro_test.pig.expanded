@@ -1,0 +1,18 @@
+register '/me/Software/pig/build/ivy/lib/Pig/avro-1.5.3.jar';
+register '/me/Software/pig/build/ivy/lib/Pig/json-simple-1.1.jar';
+register '/me/Software/pig/contrib/piggybank/java/piggybank.jar';
+define AvroStorage org.apache.pig.piggybank.storage.avro.AvroStorage();
+emails = load '/me/Data/enron.avro' USING AvroStorage();
+emails = filter emails BY (message_id IS not null);
+emails = limit emails 100;
+id_body = foreach emails generate message_id, body;
+rmf /tmp/macro_test
+macro_tf_idf_token_records_0 = foreach id_body generate message_id, FLATTEN(TOKENIZE(body))  AS tokens;
+macro_tf_idf_doc_word_totals_0 = foreach  (group macro_tf_idf_token_records_0 by (message_id, tokens))  generate flatten(group)  AS (message_id, token), COUNT_STAR(macro_tf_idf_token_records_0) AS doc_total;
+macro_tf_idf_pre_term_counts_0 = foreach  (group macro_tf_idf_doc_word_totals_0 by (message_id))  generate group AS message_id, FLATTEN(macro_tf_idf_doc_word_totals_0.(token, doc_total))  AS (token, doc_total), SUM(macro_tf_idf_doc_word_totals_0.(doc_total)) AS doc_size;
+macro_tf_idf_term_freqs_0 = foreach macro_tf_idf_pre_term_counts_0 generate message_id AS message_id, token AS token, ((double)doc_total / (double)doc_size) AS term_freq;
+macro_tf_idf_token_usages_0 = foreach  (group macro_tf_idf_term_freqs_0 by (token))  generate FLATTEN(macro_tf_idf_term_freqs_0)  AS (message_id, token, term_freq), COUNT_STAR(macro_tf_idf_term_freqs_0) AS num_docs_with_token;
+macro_tf_idf_just_ids_0 = foreach id_body generate message_id;
+macro_tf_idf_ndocs_0 = foreach  (group macro_tf_idf_just_ids_0 all)  generate COUNT_STAR(macro_tf_idf_just_ids_0) AS total_docs;
+my_tf_idf_scores = foreach macro_tf_idf_token_usages_0 { idf = LOG((double)macro_tf_idf_ndocs_0.(total_docs) / (double)num_docs_with_token); tf_idf = (double)term_freq * idf;  generate message_id AS message_id, token AS score, (chararray)tf_idf AS value:chararray; } ;
+store my_tf_idf_scores INTO '/tmp/macro_test';
